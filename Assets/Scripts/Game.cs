@@ -40,7 +40,7 @@ public class Game : MonoBehaviour, IGame
     {
         AsyncOperation op = SceneManager.LoadSceneAsync(Level);
         op.allowSceneActivation = true;
-        Debug.Log("游戏重启完毕");
+        Debug.Log("游戏重启");
     }
 
     public void StartGame()
