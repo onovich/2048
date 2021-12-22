@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -29,11 +30,20 @@ public class Game : MonoBehaviour, IGame
 
     public void GameOver()
     {
-
+        QuitGame();
     }
 
     public void QuitGame()
     {
+#if UNITY_EDITOR //在编辑器模式下
+
+        EditorApplication.isPlaying = false;
+
+#else //正式环境下
+
+Application.Quit();
+
+#endif
     }
 
     public void Restart()

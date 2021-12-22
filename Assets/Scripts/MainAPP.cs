@@ -27,6 +27,7 @@ public class MainAPP : MonoBehaviour
         //世界订阅输入
         PlayerController.OnMoveEvent += World.WorldAction;
         PlayerController.OnEscEvent += Game.GameOver;
+        World.OnMoveCalculateDoneEvent += World.RefreshDisplay;
         World.OnWorldMoveDoneEvent += World.Generate;
         //Game订阅输入
         PlayerController.OnEscEvent += Game.QuitGame;
