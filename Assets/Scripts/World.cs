@@ -118,7 +118,14 @@ public class World : MonoBehaviour, IWorld
 
     }
 
-    
+    public void RefreshTagDisplay()
+    {
+        foreach (IBlockEntity blockEntity in Blocks.Values)
+        {
+            blockEntity.RefreshSprite(blockSprites);
+
+        }
+    }
 
     IEnumerator WorldMoving()
     {
@@ -147,10 +154,12 @@ public class World : MonoBehaviour, IWorld
         }
 
         BlocksToRefresh.Clear();
-
+        RefreshTagDisplay();
 
         OnWorldMoveDoneEvent?.Invoke();
         Debug.Log("MoveDone");
+
+        
 
     }
 
@@ -175,6 +184,7 @@ public class World : MonoBehaviour, IWorld
                                 //一旦发现非空格（在Blocks中有成员），
                                 if (!Passable.Contains(new Vector2Int(x, j)))
                                 {
+                                    /*
                                     //如果非空格点数与自己相同，则增加自己的点数(但不break循环)
                                     if (Blocks[new Vector2Int(x, j)].blockTag == Blocks[new Vector2Int(x, y)].blockTag)
                                     {
@@ -182,9 +192,10 @@ public class World : MonoBehaviour, IWorld
                                     }
                                     //如果非空格点数与自己不相同，则判定其向下一格为目标，且break当前循环
                                     else
+                                    */
                                     {
                                         //如果相邻则无动作，如果非相邻则需要动作
-                                        if (y - j > 1)
+                                        if (j-y > 1)
                                         {
                                             //将当前对象添加到待更新列表
                                             BlocksToRefresh.Add(Blocks[new Vector2Int(x, y)]);
@@ -207,6 +218,7 @@ public class World : MonoBehaviour, IWorld
 
                                     
                                 }
+                                else
                                 if (j == 3)
                                 {
                                     //一旦发现抵达边界，则判定边界为其目标
@@ -264,6 +276,7 @@ public class World : MonoBehaviour, IWorld
                             //一旦发现非空格（在Blocks中有成员），
                             if (!Passable.Contains(new Vector2Int(x, j)))
                             {
+                                /*
                                 //如果非空格点数与自己相同，则增加自己的点数(但不break循环)
                                 if (Blocks[new Vector2Int(x, j)].blockTag == Blocks[new Vector2Int(x, y)].blockTag)
                                 {
@@ -271,6 +284,7 @@ public class World : MonoBehaviour, IWorld
                                 }
                                 //如果非空格点数与自己不相同，则判定其向上一格为目标，且break当前循环
                                 else
+                                */
                                 {
                                     //如果相邻则无动作，如果非相邻则需要动作
                                     if (y - j > 1)
@@ -296,6 +310,7 @@ public class World : MonoBehaviour, IWorld
 
                                 
                             }
+                            else
                             if (j == 0)
                             {
                                 //一旦发现抵达边界，则判定边界为其目标
@@ -354,6 +369,7 @@ public class World : MonoBehaviour, IWorld
                             //一旦发现非空格（在Blocks中有成员），
                             if (!Passable.Contains(new Vector2Int(i, y)))
                             {
+                                /*
                                 //如果非空格点数与自己相同，则增加自己的点数(但不break循环)
                                 if (Blocks[new Vector2Int(i, y)].blockTag == Blocks[new Vector2Int(x, y)].blockTag)
                                 {
@@ -361,6 +377,7 @@ public class World : MonoBehaviour, IWorld
                                 }
                                 //如果非空格点数与自己不相同，则判定其向右一格为目标，且break当前循环
                                 else
+                                */
                                 {
                                     //如果相邻则无动作，如果非相邻则需要动作
                                     if (x - i > 1)
@@ -386,6 +403,7 @@ public class World : MonoBehaviour, IWorld
                                 
                             
                             }
+                            else
                             if (i == 0)
                             {
                                 //一旦发现抵达边界，则判定边界为其目标
@@ -449,6 +467,7 @@ public class World : MonoBehaviour, IWorld
                                 //一旦发现非空格（在Blocks中有成员），
                                 if (!Passable.Contains(new Vector2Int(i, y)))
                                 {
+                                    /*
                                     //如果非空格点数与自己相同，则增加自己的点数(但不break循环)
                                     if (Blocks[new Vector2Int(i, y)].blockTag == Blocks[new Vector2Int(x, y)].blockTag)
                                     {
@@ -456,9 +475,10 @@ public class World : MonoBehaviour, IWorld
                                     }
                                     //如果非空格点数与自己不相同，则判定其向左一格为目标，且break当前循环
                                     else
+                                    */
                                     {
                                         //如果相邻则无动作，如果非相邻则需要动作
-                                        if (x - i > 1)
+                                        if (i-x > 1)
                                         {
                                             //将当前对象添加到待更新列表
                                             BlocksToRefresh.Add(Blocks[new Vector2Int(x, y)]);
@@ -480,6 +500,7 @@ public class World : MonoBehaviour, IWorld
                                     }
                                     
                                 }
+                                else
                                 if (i == 3)
                                 {
                                     //一旦发现抵达边界，则判定边界为其目标
