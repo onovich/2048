@@ -233,7 +233,7 @@ public class World : MonoBehaviour, IWorld
             Vector2Int target = new Vector2Int(targetX, targetY);
 
             IBlockEntity entity = BlocksInMap[pos];
-            IBlockEntity targetEntity = BlocksInMap[target];
+            //IBlockEntity targetEntity = BlocksInMap[target];
 
             BlocksToRefresh.Remove(entity);
             BlocksInMap.Remove(pos);
@@ -255,10 +255,10 @@ public class World : MonoBehaviour, IWorld
                 {
                     if (HasBlock(x, y))
                     {
-                        if (HasBlock(x, y + 1) && TagEualToSelf(x, y, x, y + 1))
+                        if (HasBlock(x, y+1) && TagEualToSelf(x, y, x, y + 1))
                         {
-                            Combine(x, y, x, y + 1);
-                            break;
+                            Combine(x, y, x, y+1);
+                            //break;
                         }
                     }
 
@@ -276,7 +276,7 @@ public class World : MonoBehaviour, IWorld
                         if (HasBlock(x, y - 1) && TagEualToSelf(x, y, x, y - 1))
                         {
                             Combine(x, y, x, y - 1);
-                            break;
+                            //break;
                         }
                     }
 
@@ -294,7 +294,7 @@ public class World : MonoBehaviour, IWorld
                         if (HasBlock(x - 1, y) && TagEualToSelf(x, y, x - 1, y))
                         {
                             Combine(x, y, x - 1, y);
-                            break;
+                            //break;
                         }
                     }
 
@@ -312,7 +312,7 @@ public class World : MonoBehaviour, IWorld
                         if (HasBlock(x + 1, y) && TagEualToSelf(x, y, x + 1, y))
                         {
                             Combine(x, y, x + 1, y);
-                            break;
+                            //break;
                         }
                     }
 
@@ -424,6 +424,7 @@ public class World : MonoBehaviour, IWorld
 
     public void WorldMove(int dir)
     {
+        //CombineTest(dir);
         MoveTest(dir);
         CombineTest(dir);
         MoveTest(dir);
