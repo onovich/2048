@@ -33,8 +33,9 @@ public class World : MonoBehaviour, IWorld
 
     //public WorldMap[,] WorldMap = new WorldMap[4,4];
     public List<Vector2Int> Passable = new List<Vector2Int>();
-    public Dictionary<Vector2Int, IBlockEntity> Blocks = new Dictionary<Vector2Int, IBlockEntity>();
+    public Dictionary<Vector2Int, IBlockEntity> BlocksInMap = new Dictionary<Vector2Int, IBlockEntity>();
     public List<IBlockEntity> BlocksToRefresh = new List<IBlockEntity>();
+    public List<Vector2Int> BlocksToRemove = new List<Vector2Int>();
 
     //public GameObject sample;
 
@@ -43,7 +44,7 @@ public class World : MonoBehaviour, IWorld
     private float oy = -2.07f;
     private float blockSize = 1.37f;
 
-    private Sprite[] blockSprites = new Sprite[11];
+    public Sprite[] blockSprites = new Sprite[11];
 
     private void Start()
     {
@@ -60,11 +61,11 @@ public class World : MonoBehaviour, IWorld
         }
         Generate();
     }
-
+ 
 
     public void Generate()
     {
-        Debug.Log("执行生成");
+        //Debug.Log("执行生成");
         if (Passable.Count > 0)
         {
 
@@ -83,21 +84,19 @@ public class World : MonoBehaviour, IWorld
             blockEntity.transform.position = new Vector3(worldX, worldY, 0);
             blockEntity.GetComponent<SpriteRenderer>().sprite = n == 0 ? blockSprites[0] : blockSprites[1];
 
-            Blocks.Add(Passable[index], blockEntityComponent);
+            BlocksInMap.Add(Passable[index], blockEntityComponent);
             Passable.Remove(Passable[index]);
 
 
         }
         else
         {
-            Debug.Log("世界被填满");
+            //Debug.Log("世界被填满");
             OnEndEvent?.Invoke();
         }
 
     }
-
-
-
+    
 
     public void WorldAction(object sender, MoveEventArgs e)
     {
@@ -112,19 +111,27 @@ public class World : MonoBehaviour, IWorld
     {
         StartCoroutine(WorldMoving());
 
-
-
-
-
     }
+
+    public void RemoveList()
+    {
+        foreach(Vector2Int blockEntity in BlocksToRemove)
+        {
+            BlocksInMap[blockEntity].Remove();
+            BlocksInMap.Remove(blockEntity);
+            BlocksToRemove.Remove(blockEntity);
+        }
+    }
+
 
     public void RefreshTagDisplay()
     {
-        foreach (IBlockEntity blockEntity in Blocks.Values)
+        foreach (IBlockEntity blockEntity in BlocksInMap.Values)
         {
             blockEntity.RefreshSprite(blockSprites);
 
         }
+        Debug.Log("已更新点数显示");
     }
 
     IEnumerator WorldMoving()
@@ -134,425 +141,292 @@ public class World : MonoBehaviour, IWorld
         {
             foreach (BlockEntity blockEntity in BlocksToRefresh)
             {
-                Vector2 blockVelocity = Vector2.zero;
-                Vector2 pos = blockEntity.transform.position;
-                Vector2 target = new Vector2(ox + blockSize * blockEntity.target.Value.x, oy + blockSize * blockEntity.target.Value.y);
+                if (blockEntity != null && blockEntity.target != null)
+                {
+                    Vector2 blockVelocity = Vector2.zero;
+                    Vector2 pos = blockEntity.transform.position;
+                   
+                    Vector2 target = new Vector2(ox + blockSize * blockEntity.target.Value.x, oy + blockSize * blockEntity.target.Value.y);
 
-                //blockEntity.transform.position = Vector2.SmoothDamp(pos, target, ref blockVelocity, .1f);
-                blockEntity.transform.position = Vector2.Lerp(pos, target, timeCost/.1f);
-                pos = blockEntity.transform.position;
+                    //blockEntity.transform.position = Vector2.SmoothDamp(pos, target, ref blockVelocity, .1f);
+                    blockEntity.transform.position = Vector2.Lerp(pos, target, timeCost / .1f);
+                    pos = blockEntity.transform.position;
+                }
+                
 
             }
             timeCost += .002f;
             yield return new WaitForSecondsRealtime(.002f);
             
         }
+        
         foreach (BlockEntity blockEntity in BlocksToRefresh)
         {
-            Vector2 target = new Vector2(ox + blockSize * blockEntity.target.Value.x, oy + blockSize * blockEntity.target.Value.y);
-            blockEntity.transform.position = target;
+            if (blockEntity != null && blockEntity.target != null)
+            {
+                Vector2 target = new Vector2(ox + blockSize * blockEntity.target.Value.x, oy + blockSize * blockEntity.target.Value.y);
+                blockEntity.transform.position = target;
+            }
+            
         }
 
+        //RemoveList();
         BlocksToRefresh.Clear();
         RefreshTagDisplay();
 
         OnWorldMoveDoneEvent?.Invoke();
-        Debug.Log("MoveDone");
+        //Debug.Log("MoveDone");
 
         
 
     }
 
 
+    bool OutOfMap(int x,int y)
+    {
+        if (x > 3 || x < 0 || y > 3 || y < 0)
+            return true;
+        else
+            return false;
+    }
+    void SetTarget(int selfX,int selfY,int targetX,int targetY)
+    {
+        if(selfX!=targetX || selfY != targetY)
+        {
+            Vector2Int pos = new Vector2Int(selfX, selfY);
+            Vector2Int target = new Vector2Int(targetX, targetY);
+
+            IBlockEntity entity = BlocksInMap[pos];
+
+            entity.target = target;
+            BlocksInMap.Add(target, entity);
+            BlocksInMap.Remove(pos);
+            Passable.Add(pos);
+            Passable.Remove(target);
+
+            BlocksToRefresh.Add(entity);
+        }
+
+        
+       
+    }
+    bool HasBlock(int x,int y)
+    {
+        //return !Passable.Contains(new Vector2Int(x, y));
+        return BlocksInMap.ContainsKey(new Vector2Int(x,y));
+    }
+
+    bool TagEualToSelf(int selfX,int selfY,int targetX,int targetY)
+    {
+        Vector2Int pos = new Vector2Int(selfX, selfY);
+        Vector2Int target = new Vector2Int(targetX, targetY);
+        return BlocksInMap[pos].blockTag == BlocksInMap[target].blockTag;
+    }
+
+    void Combine(int selfX, int selfY, int targetX, int targetY)
+    {
+        Debug.Log("合并判定预备:"+selfX+","+selfY+";"+targetX+","+targetY);
+        if (selfX != targetX || selfY != targetY)
+        {
+            Debug.Log("合并判定");
+            Vector2Int pos = new Vector2Int(selfX, selfY);
+            Vector2Int target = new Vector2Int(targetX, targetY);
+
+            IBlockEntity entity = BlocksInMap[pos];
+            IBlockEntity targetEntity = BlocksInMap[target];
+
+            BlocksToRefresh.Remove(entity);
+            BlocksInMap.Remove(pos);
+            entity.Remove();
+            Passable.Add(pos);
+            BlocksInMap[target].blockTag *= 2;
+            
+            //BlocksToRefresh.Add(targetEntity);
+        }
+    }
+
+    void CombineTest(int dir)
+    {
+        if (dir == 1)
+        {
+            for (int y = 2; y >= 0; y--)
+            {
+                for (int x = 0; x < 4; x++)
+                {
+                    if (HasBlock(x, y))
+                    {
+                        if (HasBlock(x, y + 1) && TagEualToSelf(x, y, x, y + 1))
+                        {
+                            Combine(x, y, x, y + 1);
+                            break;
+                        }
+                    }
+
+                }
+            }
+        }
+        if (dir == 2)
+        {
+            for (int y = 1; y < 4; y++)
+            {
+                for (int x = 0; x < 4; x++)
+                {
+                    if (HasBlock(x, y))
+                    {
+                        if (HasBlock(x, y - 1) && TagEualToSelf(x, y, x, y - 1))
+                        {
+                            Combine(x, y, x, y - 1);
+                            break;
+                        }
+                    }
+
+                }
+            }
+        }
+        if (dir == 3)
+        {
+            for (int x = 1; x < 4; x++)
+            {
+                for (int y = 0; y < 4; y++)
+                {
+                    if (HasBlock(x, y))
+                    {
+                        if (HasBlock(x - 1, y) && TagEualToSelf(x, y, x - 1, y))
+                        {
+                            Combine(x, y, x - 1, y);
+                            break;
+                        }
+                    }
+
+                }
+            }
+        }
+        if (dir == 4)
+        {
+            for (int x = 2; x >= 0; x--)
+            {
+                for (int y = 0; y < 4; y++)
+                {
+                    if (HasBlock(x, y))
+                    {
+                        if (HasBlock(x + 1, y) && TagEualToSelf(x, y, x + 1, y))
+                        {
+                            Combine(x, y, x + 1, y);
+                            break;
+                        }
+                    }
+
+                }
+            }
+        }
+
+    }
+
+
+
+
+
+
+
+
+
+    void MoveTest(int dir)
+    {
+        if (dir == 1)
+        {
+            for (int y = 2; y >=0; y--)
+            {
+                for (int x = 0; x < 4; x++)
+                {
+                    if (HasBlock(x, y))
+                    {
+                        for (int j = y; j < 4; j++)
+                        {
+                            if ((OutOfMap(x, j + 1) || (HasBlock(x, j + 1))))
+                            {
+                                SetTarget(x, y, x, j );
+                                break;
+                            }
+                        }
+                    }
+                    
+                }
+            }
+        }
+        if (dir == 2)
+        {
+            for (int y = 1; y < 4; y++)
+            {
+                for (int x = 0; x < 4; x++)
+                {
+                    if (HasBlock(x,y))
+                    {
+                        for (int j = y; j >= 0; j--)
+                        {
+                            if ((OutOfMap(x, j - 1) || (HasBlock(x, j - 1))))
+                            {
+                                SetTarget(x, y, x, j );
+                                break;
+                            }
+                        }
+                    }
+                    
+                }
+            }
+        }
+        if (dir == 3)
+        {
+            for(int x = 1; x < 4; x++)
+            {
+                for(int y = 0; y < 4; y++)
+                {
+                    if (HasBlock(x, y))
+                    {
+                        for (int i = x; i >= 0; i--)
+                        {
+                            if ((OutOfMap(i - 1, y) || (HasBlock(i - 1, y))))
+                            {
+                                SetTarget(x, y, i, y);
+                                break;
+                            }
+                        }
+                    }
+                    
+                }
+            }
+        }
+        if (dir == 4)
+        {
+            for (int x = 2; x >=0; x--)
+            {
+                for (int y = 0; y < 4; y++)
+                {
+                    if (HasBlock(x, y))
+                    {
+                        for (int i = x; i < 4; i++)
+                        {
+                            if ((OutOfMap(i + 1, y) || (HasBlock(i + 1, y))))
+                            {
+                                SetTarget(x, y, i, y);
+                                break;
+                            }
+                        }
+                    }
+                    
+                }
+            }
+        }
+
+    }
+
+
+
 
     public void WorldMove(int dir)
     {
-
-        if (dir == 1)
-        {
-            for (int y = 2; y >= 0; y--)//逐y,且忽略已顶格的第1列
-            {
-                for (int x = 0; x < 4; x++)//逐x,逐格
-                {
-                    if (Blocks.ContainsKey(new Vector2Int(x, y)))
-                    {
-                        //从自己向边缘，去逐格扫描
-                        if (y + 1 < 4)
-                        {
-                            for (int j = y + 1; j < 4; j++)
-                            {
-                                //一旦发现非空格（在Blocks中有成员），
-                                if (!Passable.Contains(new Vector2Int(x, j)))
-                                {
-                                    /*
-                                    //如果非空格点数与自己相同，则增加自己的点数(但不break循环)
-                                    if (Blocks[new Vector2Int(x, j)].blockTag == Blocks[new Vector2Int(x, y)].blockTag)
-                                    {
-                                        Blocks[new Vector2Int(x, y)].blockTag *= 2;
-                                    }
-                                    //如果非空格点数与自己不相同，则判定其向下一格为目标，且break当前循环
-                                    else
-                                    */
-                                    {
-                                        //如果相邻则无动作，如果非相邻则需要动作
-                                        if (j-y > 1)
-                                        {
-                                            //将当前对象添加到待更新列表
-                                            BlocksToRefresh.Add(Blocks[new Vector2Int(x, y)]);
-                                            //设定移动动画目标
-                                            Blocks[new Vector2Int(x, y)].target = new Vector2Int(x, j - 1);
-                                            //创建目标
-                                            Blocks.Add(new Vector2Int(x, j - 1), Blocks[new Vector2Int(x, y)]);
-                                            //修改目标坐标的点数
-                                            Blocks[new Vector2Int(x, j - 1)].blockTag = Blocks[new Vector2Int(x, y)].blockTag;
-                                            //移除当前坐标
-                                            Blocks.Remove(new Vector2Int(x, y));
-                                            //设置原坐标可行
-                                            Passable.Add(new Vector2Int(x, y));
-                                            //设置新坐标不可行
-                                            Passable.Remove(new Vector2Int(x, j - 1));
-                                        }
-                                        //已经完成目标检定，退出循环
-                                        break;
-                                    }
-
-                                    
-                                }
-                                else
-                                if (j == 3)
-                                {
-                                    //一旦发现抵达边界，则判定边界为其目标
-                                    //将当前对象添加到待更新列表
-                                    /*
-                                    if(BlocksToRefresh.Contains(Blocks[new Vector2Int(x, y)]))
-                                    {
-                                        Blocks[new Vector2Int(x, y)].Remove();
-                                        BlocksToRefresh.Remove(Blocks[new Vector2Int(x, y)]);
-                                    }
-                                    */
-                                    BlocksToRefresh.Add(Blocks[new Vector2Int(x, y)]);
-                                    //设定移动动画目标
-                                    Blocks[new Vector2Int(x, y)].target = new Vector2Int(x, 3);
-                                    //创建目标
-
-                                    if (Blocks.ContainsKey(new Vector2Int(x, 3)))
-                                    {
-                                        Blocks[new Vector2Int(x, 3)].Remove();
-                                        Blocks.Remove(new Vector2Int(x, 3));
-                                    }
-                                    Blocks.Add(new Vector2Int(x, 3), Blocks[new Vector2Int(x, y)]);
-                                    //修改目标坐标的点数
-                                    Debug.Log("检测:x,j=" + x + "," + 3);
-                                    Blocks[new Vector2Int(x, 3)].blockTag = Blocks[new Vector2Int(x, y)].blockTag;
-                                    //移除当前坐标
-                                    Blocks.Remove(new Vector2Int(x, y));
-                                    //设置原坐标可行
-                                    Passable.Add(new Vector2Int(x, y));
-                                    //设置新坐标不可行
-                                    Passable.Remove(new Vector2Int(x, 3));
-                                    //已经完成目标检定，退出循环
-                                    break;
-                                }
-                            }
-                        } 
-                    }
-
-                }
-            }
-        }
-
-
-        if (dir == 2)
-        {
-            for (int y = 1; y < 4; y++)//逐y,且忽略已顶格的第1列
-            {
-                for (int x = 0; x < 4; x++)//逐x,逐格
-                {
-                    if (Blocks.ContainsKey(new Vector2Int(x, y)))
-                    {
-                        //从自己向边缘，去逐格扫描
-                        for (int j = y - 1; j >= 0; j--)
-                        {
-                            //一旦发现非空格（在Blocks中有成员），
-                            if (!Passable.Contains(new Vector2Int(x, j)))
-                            {
-                                /*
-                                //如果非空格点数与自己相同，则增加自己的点数(但不break循环)
-                                if (Blocks[new Vector2Int(x, j)].blockTag == Blocks[new Vector2Int(x, y)].blockTag)
-                                {
-                                    Blocks[new Vector2Int(x, y)].blockTag *= 2;
-                                }
-                                //如果非空格点数与自己不相同，则判定其向上一格为目标，且break当前循环
-                                else
-                                */
-                                {
-                                    //如果相邻则无动作，如果非相邻则需要动作
-                                    if (y - j > 1)
-                                    {
-                                        //将当前对象添加到待更新列表
-                                        BlocksToRefresh.Add(Blocks[new Vector2Int(x, y)]);
-                                        //设定移动动画目标
-                                        Blocks[new Vector2Int(x, y)].target = new Vector2Int(x, j + 1);
-                                        //创建目标
-                                        Blocks.Add(new Vector2Int(x, j + 1), Blocks[new Vector2Int(x, y)]);
-                                        //修改目标坐标的点数
-                                        Blocks[new Vector2Int(x, j + 1)].blockTag = Blocks[new Vector2Int(x, y)].blockTag;
-                                        //移除当前坐标
-                                        Blocks.Remove(new Vector2Int(x, y));
-                                        //设置原坐标可行
-                                        Passable.Add(new Vector2Int(x, y));
-                                        //设置新坐标不可行
-                                        Passable.Remove(new Vector2Int(x, j + 1));
-                                    }
-                                    //已经完成目标检定，退出循环
-                                    break;
-                                }
-
-                                
-                            }
-                            else
-                            if (j == 0)
-                            {
-                                //一旦发现抵达边界，则判定边界为其目标
-                                //将当前对象添加到待更新列表
-                                /*
-                                if (BlocksToRefresh.Contains(Blocks[new Vector2Int(x, y)]))
-                                {
-                                    Blocks[new Vector2Int(x, y)].Remove();
-                                    BlocksToRefresh.Remove(Blocks[new Vector2Int(x, y)]);
-                                }
-                                */
-                                BlocksToRefresh.Add(Blocks[new Vector2Int(x, y)]);
-                                //设定移动动画目标
-                                Blocks[new Vector2Int(x, y)].target = new Vector2Int(x, 0);
-                                //创建目标
-
-                                if (Blocks.ContainsKey(new Vector2Int(x, 0)))
-                                {
-                                    Blocks[new Vector2Int(x, 0)].Remove();
-                                    Blocks.Remove(new Vector2Int(x, 0));
-                                }
-                                Blocks.Add(new Vector2Int(x, 0), Blocks[new Vector2Int(x, y)]);
-                                //修改目标坐标的点数
-                                Debug.Log("检测:x,j=" + x + "," + 0);
-                                Blocks[new Vector2Int(x, 0)].blockTag = Blocks[new Vector2Int(x, y)].blockTag;
-                                //移除当前坐标
-                                Blocks.Remove(new Vector2Int(x, y));
-                                //设置原坐标可行
-                                Passable.Add(new Vector2Int(x, y));
-                                //设置新坐标不可行
-                                Passable.Remove(new Vector2Int(x, 0));
-                                //已经完成目标检定，退出循环
-                                break;
-
-
-                            }
-                        }
-                    }
-
-                }
-            }
-        }
-
-
-        if (dir == 3)
-        {
-            for (int x = 1; x < 4; x++)//逐x,且忽略已顶格的第1列
-            {
-                for (int y = 0; y < 4; y++)//逐y,逐格
-                {
-                    if (Blocks.ContainsKey(new Vector2Int(x, y)))
-                    {
-                        //从自己向边缘，去逐格扫描
-                        for (int i = x - 1; i >= 0; i--)
-                        {
-                            //一旦发现非空格（在Blocks中有成员），
-                            if (!Passable.Contains(new Vector2Int(i, y)))
-                            {
-                                /*
-                                //如果非空格点数与自己相同，则增加自己的点数(但不break循环)
-                                if (Blocks[new Vector2Int(i, y)].blockTag == Blocks[new Vector2Int(x, y)].blockTag)
-                                {
-                                    Blocks[new Vector2Int(x, y)].blockTag *= 2;
-                                }
-                                //如果非空格点数与自己不相同，则判定其向右一格为目标，且break当前循环
-                                else
-                                */
-                                {
-                                    //如果相邻则无动作，如果非相邻则需要动作
-                                    if (x - i > 1)
-                                    {
-                                        //将当前对象添加到待更新列表
-                                        BlocksToRefresh.Add(Blocks[new Vector2Int(x, y)]);
-                                        //设定移动动画目标
-                                        Blocks[new Vector2Int(x, y)].target = new Vector2Int(i + 1, y);
-                                        //创建目标
-                                        Blocks.Add(new Vector2Int(i + 1, y), Blocks[new Vector2Int(x, y)]);
-                                        //修改目标坐标的点数
-                                        Blocks[new Vector2Int(i + 1, y)].blockTag = Blocks[new Vector2Int(x, y)].blockTag;
-                                        //移除当前坐标
-                                        Blocks.Remove(new Vector2Int(x, y));
-                                        //设置原坐标可行
-                                        Passable.Add(new Vector2Int(x, y));
-                                        //设置新坐标不可行
-                                        Passable.Remove(new Vector2Int(i + 1, y));
-                                    }
-                                    //已经完成目标检定，退出循环
-                                    break;
-                                }
-                                
-                            
-                            }
-                            else
-                            if (i == 0)
-                            {
-                                //一旦发现抵达边界，则判定边界为其目标
-                                //将当前对象添加到待更新列表
-                                /*
-                                if (BlocksToRefresh.Contains(Blocks[new Vector2Int(x, y)]))
-                                {
-                                    Blocks[new Vector2Int(x, y)].Remove();
-                                    BlocksToRefresh.Remove(Blocks[new Vector2Int(x, y)]);
-                                }
-                                */
-                                BlocksToRefresh.Add(Blocks[new Vector2Int(x, y)]);
-                                //设定移动动画目标
-                                Blocks[new Vector2Int(x, y)].target = new Vector2Int(0, y);
-                                //创建目标
-                                if (Blocks.ContainsKey(new Vector2Int(0,y)))
-                                {
-                                    Blocks[new Vector2Int(0,y)].Remove();
-                                    Blocks.Remove(new Vector2Int(0,y));
-                                }
-                                Blocks.Add(new Vector2Int(0, y), Blocks[new Vector2Int(x, y)]);
-                                //修改目标坐标的点数
-                                Debug.Log("检测:i,y=" + 0 + "," + y);
-                                Blocks[new Vector2Int(0, y)].blockTag = Blocks[new Vector2Int(x, y)].blockTag;
-                                //移除当前坐标
-                                Blocks.Remove(new Vector2Int(x, y));
-                                //设置原坐标可行
-                                Passable.Add(new Vector2Int(x, y));
-                                //设置新坐标不可行
-                                Passable.Remove(new Vector2Int(0, y));
-                                //已经完成目标检定，退出循环
-                                break;
-
-
-
-                            }
-                        }
-
-                            
-                    }
-
-                }
-            }
-        }
-
-
-
-        if (dir == 4)
-        {
-            for (int x = 2; x >= 0; x--)//逐x,且忽略已顶格的第1列
-            {
-                for (int y = 0; y < 4; y++)//逐y,逐格
-                {
-                    if (Blocks.ContainsKey(new Vector2Int(x, y)))
-                    {
-                        //从自己向边缘，去逐格扫描
-                        if (x + 1 < 4)
-                        {
-                            for (int i = x + 1; i < 4; i++)
-                            {
-                                //一旦发现非空格（在Blocks中有成员），
-                                if (!Passable.Contains(new Vector2Int(i, y)))
-                                {
-                                    /*
-                                    //如果非空格点数与自己相同，则增加自己的点数(但不break循环)
-                                    if (Blocks[new Vector2Int(i, y)].blockTag == Blocks[new Vector2Int(x, y)].blockTag)
-                                    {
-                                        Blocks[new Vector2Int(x, y)].blockTag *= 2;
-                                    }
-                                    //如果非空格点数与自己不相同，则判定其向左一格为目标，且break当前循环
-                                    else
-                                    */
-                                    {
-                                        //如果相邻则无动作，如果非相邻则需要动作
-                                        if (i-x > 1)
-                                        {
-                                            //将当前对象添加到待更新列表
-                                            BlocksToRefresh.Add(Blocks[new Vector2Int(x, y)]);
-                                            //设定移动动画目标
-                                            Blocks[new Vector2Int(x, y)].target = new Vector2Int(i - 1, y);
-                                            //创建目标
-                                            Blocks.Add(new Vector2Int(i - 1, y), Blocks[new Vector2Int(x, y)]);
-                                            //修改目标坐标的点数
-                                            Blocks[new Vector2Int(i - 1, y)].blockTag = Blocks[new Vector2Int(x, y)].blockTag;
-                                            //移除当前坐标
-                                            Blocks.Remove(new Vector2Int(x, y));
-                                            //设置原坐标可行
-                                            Passable.Add(new Vector2Int(x, y));
-                                            //设置新坐标不可行
-                                            Passable.Remove(new Vector2Int(i - 1, y));
-                                        }
-                                        //已经完成目标检定，退出循环
-                                        break;
-                                    }
-                                    
-                                }
-                                else
-                                if (i == 3)
-                                {
-                                    //一旦发现抵达边界，则判定边界为其目标
-                                    //将当前对象添加到待更新列表
-                                    /*
-                                    if (BlocksToRefresh.Contains(Blocks[new Vector2Int(x, y)]))
-                                    {
-                                        Blocks[new Vector2Int(x, y)].Remove();
-                                        BlocksToRefresh.Remove(Blocks[new Vector2Int(x, y)]);
-                                    }
-                                    */
-                                    BlocksToRefresh.Add(Blocks[new Vector2Int(x, y)]);
-                                    //设定移动动画目标
-                                    Blocks[new Vector2Int(x, y)].target = new Vector2Int(3, y);
-                                    //创建目标
-                                    if (Blocks.ContainsKey(new Vector2Int(3,y)))
-                                    {
-                                        Blocks[new Vector2Int(3,y)].Remove();
-                                        Blocks.Remove(new Vector2Int(3,y));
-                                    }
-                                    Blocks.Add(new Vector2Int(3, y), Blocks[new Vector2Int(x, y)]);
-
-
-                                    //修改目标坐标的点数
-                                    Debug.Log("检测:i,y=" + 3 + "," + y);
-                                    Blocks[new Vector2Int(3, y)].blockTag = Blocks[new Vector2Int(x, y)].blockTag;
-                                    //移除当前坐标
-                                    Blocks.Remove(new Vector2Int(x, y));
-                                    //设置原坐标可行
-                                    Passable.Add(new Vector2Int(x, y));
-                                    //设置新坐标不可行
-                                    Passable.Remove(new Vector2Int(3, y));
-                                    //已经完成目标检定，退出循环
-                                    break;
-                                }
-                            }
-                        }
-                        
-
-
-
-
-
-
-                    }
-
-                }
-            }
-        }
-
-
-
+        MoveTest(dir);
+        CombineTest(dir);
+        MoveTest(dir);
 
         OnMoveCalculateDoneEvent?.Invoke();
     }
@@ -571,5 +445,6 @@ public class World : MonoBehaviour, IWorld
     {
     }
 
+     
 
 }
